@@ -1,0 +1,9 @@
+flask
+langchain
+python-dotenv
+langchain_groq
+langchain_openai
+langchain_google-genai
+
+
+#-e .
