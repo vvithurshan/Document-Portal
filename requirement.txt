@@ -4,6 +4,8 @@ python-dotenv
 langchain_groq
 langchain_openai
 langchain_google-genai
-
+langchain_community
+pypdf
+faiss-cpu
 
 #-e .
