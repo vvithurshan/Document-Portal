@@ -9,4 +9,5 @@ pypdf
 faiss-cpu
 structlog
 PyMuPDF
--e .
+PyDantic
+#-e .

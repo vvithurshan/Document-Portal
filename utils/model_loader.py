@@ -14,7 +14,7 @@ log = CustomLogger.get_logger(__name__)
 
 class ModelLoader:
     """
-    A utility function to load model
+    A utility function to load LLM and embedding models.
     """
     def __init__(self):
         load_dotenv()
@@ -63,12 +63,11 @@ class ModelLoader:
 
         log.info(f"Loading LLM: provider={provider}, model_name={model_name}, temperature={temperature}, max_tokens={max_tokens}")
 
-
         if provider == 'google':
             llm = ChatGoogleGenerativeAI(
-                model_name=model_name,
-                temperature=temperature,
-                max_output_tokens=max_tokens,
+                model_name = model_name,
+                temperature = temperature,
+                max_output_tokens = max_tokens,
             )
             log.info(f"LLM {provider} loaded sucessfully")
             return llm
@@ -96,5 +95,5 @@ if __name__ == "__main__":
     print(f"LLM: {llm} Loaded sucessfully")
 
     # Test
-    result = llm.invoke("what is nm stands for in science?")
+    result = llm.invoke("what does nm stand for in science?")
     print(f"Result: {result.content}")

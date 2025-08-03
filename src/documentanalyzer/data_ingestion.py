@@ -47,7 +47,7 @@ class DocumentHandler:
             self.log.error(f"Error saving PDF: {e}")
             raise DocumentPortalException(e, sys)
 
-    # this can be repalced with langchain PDf reader
+    # this can be repalced with langchain PDF reader
     def read_pdf(self, pdf_path):
         try:
             text_chunks = []
