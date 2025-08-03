@@ -17,34 +17,31 @@ class DocumentcompareLLM:
         self.loader = ModelLoader()
         self.llm = self.loader.load_llm()
         self.parser = JsonOutputParser()
-        self.fixing_parser = OutputFixingParser.from_llm(parser = self.parser, llm = self.llm)
+        self.fixing_parser = OutputFixingParser.from_llm(parser=self.parser, llm=self.llm)
         self.prompt = PROMPT_REGISTRY["document_comparison"]
-        self.chain = self.prompt | self.llm | self.fixing_parser
-        self.log.info("DocumentcompareLLM initialization Done")
+        self.chain = self.prompt | self.llm | self.parser
+        self.log.info("DocumentcompareLLM initialization done.")
 
-    def compare_documents(self, combined_docs):
+    def compare_documents(self, combined_docs: str) -> pd.DataFrame:
         try:
             inputs = {
                 "combined_docs": combined_docs,
                 "format_instruction": self.parser.get_format_instructions()
             }
-            self.log.info(f"Starting Document Comparision inputs: {inputs}")
+            self.log.info("Starting document comparison.")
             response = self.chain.invoke(inputs)
-            self.log.info(f"Document Comparison Completed, response {response}")
+            self.log.info("Document comparison completed.")
             return self._format_response(response)
 
-        except DocumentcompareLLM as e:
-            self.log.error(f"Error in Compare Document: {e}")
-            raise DocumentcompareLLM(f"An Error occured: {sys}")
+        except Exception as e:
+            self.log.error(f"Error in document comparison: {e}")
+            raise DocumentPortalException("An error occurred during document comparison.", sys)
 
-    def _format_response(self, response_parsed:list[dict]) -> pd.DataFrame:
+    def _format_response(self, response_parsed: list[dict]) -> pd.DataFrame:
         try:
             df = pd.DataFrame(response_parsed)
-            self.log.info(f"Response formated into DataFrame, dataframe: {df}")
+            self.log.info(f"Response formatted into DataFrame with shape {df.shape}.")
             return df
         except Exception as e:
-            self.log.error(f"Error occured while formatting into Pandas DataFrame: {e}")
-            raise DocumentPortalException(f"Error occured while formatting into Pandas DataFrame: {e}")
-
-
-
+            self.log.error(f"Error occurred while formatting into Pandas DataFrame: {e}")
+            raise DocumentPortalException("Error occurred while formatting into Pandas DataFrame.", sys)
