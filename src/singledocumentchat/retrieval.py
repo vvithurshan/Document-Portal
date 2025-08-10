@@ -1,5 +1,6 @@
 import sys
 import os
+import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -29,7 +30,7 @@ class ConversationalRAG:
             self.log.info(f"RAG chain Created")
             self.chain = RunnableWithMessageHistory(
                 self.rag_chain,
-                self._get_session_history(),
+                self._get_session_history,
                 input_messages_key = "input",
                 history_messages_key = "chat_history",
                 output_messages_key = "answer"
@@ -49,9 +50,16 @@ class ConversationalRAG:
             self.log.error(f"Error loading LLM via ModelLoader, error: {str(e)}")
             raise DocumentPortalException("Error loading LLM via ModelLoader", sys)
         
-    def _get_session_history(self):
+    def _get_session_history(self, session_id: str) -> BaseChatMessageHistory:
         try:
-            pass
+            if "store" not in st.session_state:
+                st.session_state.store = {}
+
+            if session_id not in st.session_state.store:
+                st.session_state.store[session_id] = ChatMessageHistory()
+                self.log.info(f"New chat session history created, session_id= {session_id}")
+
+            return st.session_state.store[session_id]
 
         except Exception as e:
             self.log.error(f"Error getting session history, e: {str(e)}")
@@ -65,6 +73,9 @@ class ConversationalRAG:
             
             vectorstore = FAISS.load_local(index_path, embeddings)
             self.log.info(f"FAISS index loaded from {index_path}")
+            
+            # This converts the vectorstore into a retriever object — something that 
+            # can be used in a pipeline (like a chatbot or Q&A system) to fetch relevant documents.
             return vectorstore.as_retriever(search_type = "similarity", search_kwargs = {"k": 5})
 
         except Exception as e:
@@ -81,7 +92,7 @@ class ConversationalRAG:
             answer =  response.get("answer", "No answer")
             if answer == "No answer":
                 self.log.warning(f"Empty Answer received, session_id: {self.session_id}")
-        
+            return answer
         except Exception as e:
             self.log.error(f"Error invoking, error: {str(e)}")
             raise DocumentPortalException("Error invoking", sys)

@@ -75,7 +75,8 @@ class SingleDocIngestor:
 
             return retriever
 
+
         except Exception as e:
 
-            self.log.erro(f"Retriever creation failed, error: {str(e)}")
+            self.log.error(f"Retriever creation failed, error: {str(e)}")
             raise DocumentPortalException("Retriever creation failed", sys)

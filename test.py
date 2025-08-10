@@ -98,6 +98,16 @@ from utils.model_loader import ModelLoader
 
 FAISS_INDEX_PATH = Path("faiss_index")
 
+# Dummy file wrapper to simulate an uploaded file, similar to Streamlit's UploadedFile
+class FakeUpload:
+    def __init__(self, file_path: Path):
+        self.name = file_path.name
+        self._data = file_path.read_bytes()
+
+    def read(self):
+        """Mimics the .read() method of a file-like object."""
+        return self._data
+
 def test_conversational_rag_on_pdf(pdf_path:str, question:str):
     try:
         model_loader = ModelLoader()
@@ -110,11 +120,11 @@ def test_conversational_rag_on_pdf(pdf_path:str, question:str):
         else:
             # Step 2: Ingest document and create retriever
             print("FAISS index not found. Ingesting PDF and creating index...")
-            with open(pdf_path, "rb") as f:
-                uploaded_files = [f]
-                ingestor = SingleDocIngestor()
-                retriever = ingestor.ingest_files(uploaded_files)
-                
+            pdf_file = Path(pdf_path)
+            fake_uploaded_file = FakeUpload(pdf_file)
+            ingestor = SingleDocIngestor()
+            retriever = ingestor.ingest_files([fake_uploaded_file])
+
         print("Running Conversational RAG...")
         session_id = "test_conversational_rag"
         rag = ConversationalRAG(retriever=retriever, session_id=session_id)
@@ -127,8 +137,8 @@ def test_conversational_rag_on_pdf(pdf_path:str, question:str):
     
 if __name__ == "__main__":
     # Example PDF path and question
-    pdf_path = "data/single_document/sample.pdf"
-    question = "What is the significance of the attention mechanism? can you explain it in simple terms?"
+    pdf_path = "/Users/uw-user/Documents/AI-2025/LLMOps/Document-Portal/data/single_document/sample.pdf"
+    question = "Explain the significance of attention mechanism in simple terms?"
 
     if not Path(pdf_path).exists():
         print(f"PDF file does not exist at: {pdf_path}")
