@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 import sys
 from datetime import datetime, timezone
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader, MarkdownLoader
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from logger.custom_logger import CustomLogger
@@ -57,7 +57,7 @@ class DocumentIngestor:
                 elif extension == '.txt':
                     loader = TextLoader(str(temp_path))
                 elif extension == '.md':
-                    loader = MarkdownLoader(str(temp_path))
+                    loader = TextLoader(str(temp_path))
                 
                 document = loader.load()
                 documents.extend(document)
