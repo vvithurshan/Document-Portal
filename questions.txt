@@ -1,0 +1,92 @@
+## **Question 1 – Session Management and Data Isolation**
+
+**Question:**
+*In this Document Portal project, we see classes like `DocumentIngestor` and `ConversationalRAG` creating unique `session_id`s. What is the purpose of this session-based architecture, and what key benefits does it provide?*
+
+**Answer:**
+The `session_id` is a cornerstone of the project’s multi-user design. Its main role is to **isolate each user’s data and preserve conversational state** throughout their interaction with the system.
+
+**Key benefits include:**
+
+1. **Data Privacy & Isolation**
+
+   * Each session gets its own temporary directory (`session_temp_dir`) and FAISS vector store directory (`session_faiss_dir`).
+   * This ensures that documents uploaded by one user cannot be accessed or searched by another, preventing cross-session data leakage.
+
+2. **Stateful Conversations**
+
+   * The `session_id` links each user to their specific chat history.
+   * For example, in `singledocumentchat/retrieval.py`, the `_get_session_history` method uses it to fetch the correct `ChatMessageHistory` object.
+   * Without this, the system would be stateless and unable to interpret context-dependent queries such as “it” or “they.”
+
+3. **Resource Management & Archival**
+
+   * All files, vector indexes, and metadata are stored under session-specific paths.
+   * This makes it straightforward to clean up expired sessions, archive them for compliance, or perform per-session analytics.
+
+4. **Concurrency**
+
+   * Multiple users can use the system at the same time without interfering with each other’s data or search results.
+   * Each user’s RAG chain operates independently on their own uploaded documents and conversational context.
+
+---
+
+## **Question 2 – The Role of the Vector Store (FAISS)**
+
+**Question:**
+*The project uses FAISS as a vector store. Could you explain what a vector store is, why it's a critical component of a RAG system, and briefly walk through how the `DocumentIngestor` class prepares and uses it?*
+
+**Answer:**
+A **vector store** is a specialized database for storing and searching **high-dimensional embeddings**—numeric representations of text, images, or other content.
+
+In a **Retrieval-Augmented Generation (RAG)** pipeline, the vector store is essential for **fast semantic search**. When a user asks a question, it’s converted into an embedding. The vector store then quickly finds the most relevant chunks of stored embeddings (nearest neighbors) to use as context for the LLM’s answer.
+
+**In this project, the `DocumentIngestor` class prepares FAISS as follows:**
+
+1. **Load & Split**
+
+   * Documents (`.pdf`, `.docx`, `.txt`, `.md`) are loaded and split into smaller chunks using `RecursiveCharacterTextSplitter`.
+   * This ensures embeddings are focused and retrieval is more precise.
+
+2. **Embed**
+
+   * An embedding model is loaded via `ModelLoader`.
+   * Each text chunk is transformed into a numerical vector.
+
+3. **Index**
+
+   * `FAISS.from_documents()` indexes all chunk vectors in a FAISS data structure for efficient similarity search.
+
+4. **Persist & Retrieve**
+
+   * The FAISS index is saved in the session-specific directory with `vectorstore.save_local(...)`.
+   * The method returns a retriever, which `ConversationalRAG` uses for searching relevant document chunks at runtime.
+
+---
+
+## **Question 3 – Handling Conversational Context**
+
+**Question:**
+*The system needs to handle follow-up questions. What is the purpose of the `contextualize_question_prompt` seen in `prompt/prompt_library.py`, and how does the chain in `multidocumentchat/retrieval.py` use it to ensure accurate document retrieval?*
+
+**Answer:**
+The `contextualize_question_prompt` addresses **conversational ambiguity**—a key challenge when using vector search.
+
+Vector stores are **stateless**: they cannot interpret pronouns or context from earlier in a conversation. If a user first asks *“What is ‘Attention Is All You Need’?”* and then follows with *“What about its architecture?”*, the retriever cannot resolve “its” without context.
+
+**How it works:**
+
+1. **Rewriting for Clarity**
+
+   * The prompt instructs the LLM to rewrite a follow-up question into a fully self-contained question using both the chat history and the new query.
+   * Example: *“What about its architecture?”* → *“What is the architecture of the Transformer model from the ‘Attention Is All You Need’ paper?”*
+
+2. **Integration into the Retrieval Chain**
+
+   * In `multidocumentchat/retrieval.py`, `_build_lcel_chain` first defines a `contextualize_q_chain`.
+   * This chain takes `input` and `chat_history`, applies the `contextualize_prompt` and the LLM, and outputs the standalone question.
+
+3. **Improved Retrieval Accuracy**
+
+   * The reformulated question is then fed into the retriever.
+   * This guarantees that document search is based on explicit, unambiguous queries, leading to more relevant retrieval results and more accurate LLM answers.
