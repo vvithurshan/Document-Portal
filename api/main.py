@@ -5,8 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import Dict, List, Any, Optional
 from src.document_ingestion.data_ingestion import (
-    DocumentHandler,
-    DocumentComparer,
+    DocHandler,
+    DocumentComparator,
     ChatIngestor,
     FaissManager
 )
@@ -49,16 +49,17 @@ class FastAPIFileAdapter:
         self._uf.file.seek(0)
         return self._uf.file.read()
 
-def _read_pdf_via_handler(handler: DocumentHandler, path: str) -> str:
-    try:
-        pass
-    except Exception as e:
-        raise HTTPException(status_code = 500, detail = f"Failed to read PDF: {str(e)}")
+def _read_pdf_via_handler(handler: DocHandler, path: str) -> str:
+    if hasattr(handler, "read_pdf"):
+        return handler.read_pdf(path)  # type: ignore
+    if hasattr(handler, "read_"):
+        return handler.read_(path)  # type: ignore
+    raise RuntimeError("DocHandler has neither read_pdf nor read_ method.")
 
 @app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)):
     try:
-        dh = DocumentHandler()
+        dh = DocHandler()
         saved_path = dh.save_pdf(FastAPIFileAdapter(file))
         text = _read_pdf_via_handler(dh, saved_path)
         analyzer = DocumentAnalyzer()
@@ -71,7 +72,7 @@ async def analyze_document(file: UploadFile = File(...)):
 @app.post("/compare")
 async def compare_documents(reference: UploadFile = File(...), actual: UploadFile = File(...)) -> Any:
     try:
-        dc = DocumentComparer()
+        dc = DocumentComparator()
         ref_path, act_path = dc.save_uploaded_files(FastAPIFileAdapter(reference), FastAPIFileAdapter(actual))
         _ = ref_path, act_path
         combined_text = dc.combine_documents(combined_text)
@@ -79,6 +80,7 @@ async def compare_documents(reference: UploadFile = File(...), actual: UploadFil
         df = comp.compare_documents(combined_text)
         return {"rows": df.to_dict(orient = "records"),
                 "session_id": dc.session_id}
+    
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Comparison failed: {str(e)}")
     
