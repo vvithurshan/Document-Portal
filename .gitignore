@@ -210,3 +210,4 @@ __marimo__/
 logs/
 archive/
 data/
+faiss_index/
