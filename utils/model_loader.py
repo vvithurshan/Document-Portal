@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from utils.config_loader import load_config
+
 from langchain_groq import ChatGroq
 from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
@@ -20,7 +21,7 @@ class ModelLoader:
         load_dotenv()
         self._validate_env()
         self.config = load_config()
-        log.info("Config loaded sucessfully", list(self.config.keys()))
+        log.info(f"Config loaded sucessfully, keys={list(self.config.keys())}")
         
     def _validate_env(self):
         required_variables = ["GOOGLE_API_KEY", "GROQ_API_KEY"]
@@ -44,15 +45,18 @@ class ModelLoader:
             return embeddings                
         
         except Exception as e:
-            log.error("Error Loading embeddings", error = str(e))
+            log.error(f"Error Loading embeddings, error={str(e)}")
             raise DocumentPortalException("Error Loading embeddings")
         
     def load_llm(self):
         llm_block = self.config["llm"]
+        # here the default model is groq
+        # you can set this via 
+        # export LLM_PROVIDER=google in your terminal
         provider_key = os.getenv("LLM_PROVIDER", "groq")
 
         if provider_key not in llm_block:
-            log.error("LLM provider not found in config", provider = provider_key)
+            log.error(f"LLM provider not found in config, provider={provider_key}")
             raise ValueError(f"LLM provider {provider_key} not found in config")
         
         llm_config = llm_block[provider_key]
@@ -65,7 +69,7 @@ class ModelLoader:
 
         if provider == 'google':
             llm = ChatGoogleGenerativeAI(
-                model_name = model_name,
+                model = model_name,
                 temperature = temperature,
                 max_output_tokens = max_tokens,
             )
@@ -81,9 +85,10 @@ class ModelLoader:
             )
             log.info(f"LLM {provider} loaded sucessfully")
             return llm
+        
         else:
-            log.error("LLM provider not found", provider = provider)
-            raise ValueError(f"LLM provider {provider} not found")  
+            log.error(f"LLM provider not found, provider={provider}")
+            raise ValueError(f"LLM provider {provider} not found")
 
 
 if __name__ == "__main__":

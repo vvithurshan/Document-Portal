@@ -20,3 +20,9 @@ llm:
     model_name: "gemini-2.0-flash"
     temperature: 0
     max_output_tokens: 2048
+
+  deepseek:
+    provider: "deepseek"
+    model_name: "deepseek-chat"
+    temperature: 0
+    max_output_tokens: 4096

@@ -11,15 +11,19 @@ from src.document_ingestion.data_ingestion import (
     FaissManager
 )
 from src.documentanalyzer.data_analysis import DocumentAnalyzer
-from src.documentcomparision.doc_compare import DocumentcompareLLM
+from src.documentcomparision.doc_compare import DocumentComparatorLLM
 from src.document_chat.retrieval import ConversationalRAG
 import os
+from pathlib import Path
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
 UPLOAD_BASE = os.getenv("UPLOAD_BASE", "data")
 FAISS_INDEX_NAME = os.getenv("FAISS_INDEX_NAME", "index")
 
 app = FastAPI(title = "Document Portal", version = "0.0.1")
+
+# Define project root to resolve static/template paths robustly
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,8 +33,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory = "../static"), name = "static")
-templates = Jinja2Templates(directory = "../templates")
+app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "static"), name="static")
+templates = Jinja2Templates(directory=PROJECT_ROOT / "templates")
 
 @app.get("/", response_class = HTMLResponse)
 async def serve_ui(request: Request):
@@ -74,9 +78,8 @@ async def compare_documents(reference: UploadFile = File(...), actual: UploadFil
     try:
         dc = DocumentComparator()
         ref_path, act_path = dc.save_uploaded_files(FastAPIFileAdapter(reference), FastAPIFileAdapter(actual))
-        _ = ref_path, act_path
-        combined_text = dc.combine_documents(combined_text)
-        comp = DocumentcompareLLM(combined_text)
+        combined_text = dc.combine_documents()
+        comp = DocumentComparatorLLM()
         df = comp.compare_documents(combined_text)
         return {"rows": df.to_dict(orient = "records"),
                 "session_id": dc.session_id}
@@ -134,3 +137,6 @@ async def chat_query(
 
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Chat query failed: {str(e)}")
+    
+# uvicorn api.main:app --port 8080 --reload
+# uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
