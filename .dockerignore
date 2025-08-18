@@ -1,0 +1,8 @@
+logs/
+archive/
+data/
+env/
+venv/
+.git
+.gitignore
+.gitignore_template

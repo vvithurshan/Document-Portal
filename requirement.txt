@@ -18,4 +18,4 @@ docx2txt
 fastapi
 uvicorn
 python-multipart 
-#-e .
+-e .

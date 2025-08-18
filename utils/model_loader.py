@@ -50,10 +50,12 @@ class ModelLoader:
         
     def load_llm(self):
         llm_block = self.config["llm"]
-        # here the default model is groq
+        # here the default model is google
         # you can set this via 
         # export LLM_PROVIDER=google in your terminal
-        provider_key = os.getenv("LLM_PROVIDER", "groq")
+        # provider_key = os.getenv("LLM_PROVIDER", "groq")
+        provider_key = os.getenv("LLM_PROVIDER", "google")
+
 
         if provider_key not in llm_block:
             log.error(f"LLM provider not found in config, provider={provider_key}")
