@@ -227,3 +227,132 @@ User sends Question + session_id
 4.  **Access the UI:**
     Open your browser and navigate to `http://localhost:8080`.
 
+# Document Portal - Interview Questions
+
+This document contains a set of interview questions designed to assess a candidate's understanding of the Document Portal project. The questions range from high-level architectural concepts to specific implementation details within the RAG pipeline and API layer.
+
+## Table of Contents
+
+1.  [Architecture & Design](#1-architecture--design)
+2.  [RAG Pipeline & Vector Stores](#2-rag-pipeline--vector-stores)
+3.  [LangChain & Prompt Engineering](#3-langchain--prompt-engineering)
+4.  [API & Backend Logic](#4-api--backend-logic)
+
+---
+
+## 1. Architecture & Design
+
+### Question 1.1: Session Management
+
+**Question:** The project heavily relies on a `session_id` for features like document chat. Could you explain the primary purpose of this session-based architecture and list two key benefits it provides?
+
+**Answer:**
+The primary purpose of the `session_id` is to **isolate user interactions and data**, creating a stateful and secure environment for each user.
+
+**Key Benefits:**
+1.  **Data Privacy and Isolation:** As seen in `ChatIngestor`, the `session_id` is used to create unique directories for uploaded files (`data/<session_id>`) and their corresponding vector indexes (`faiss_index/<session_id>`). This is a critical security feature that prevents one user's documents from being accessed or searched by another.
+2.  **Stateful Conversations:** The RAG pipeline needs to understand conversational context (e.g., follow-up questions). The `session_id` allows the system to maintain a distinct chat history for each user. The `ConversationalRAG` class is initialized with a `session_id`, which is fundamental for its ability to rewrite questions based on past interactions within that specific session.
+
+---
+
+### Question 1.2: Project Modularity
+
+**Question:** The project is organized into directories like `api`, `src`, `prompt`, and `utils`. What is the advantage of this structure, and how does it contribute to the project's maintainability?
+
+**Answer:**
+This modular structure follows the principle of **Separation of Concerns**, which is crucial for building scalable and maintainable applications.
+
+*   **`api/`**: Contains only the API layer logic (FastAPI endpoints in `main.py`). This isolates web-related concerns from the core business logic.
+*   **`src/`**: Holds the core application logic. It's further subdivided by feature (`document_chat`, `documentanalyzer`), making it easy to locate and modify the code for a specific piece of functionality without affecting others.
+*   **`prompt/`**: Centralizes all LLM prompts in `prompt_library.py`. This is a best practice for LLM applications, as it allows for easy tuning, versioning, and management of prompts without changing the application code.
+*   **`utils/`**: Contains reusable helper functions and classes (like `ModelLoader`) that are shared across different parts of the application, promoting code reuse and reducing duplication.
+
+This separation makes the codebase easier to navigate, test, and debug. A developer can work on the RAG logic in `src/document_chat/retrieval.py` without needing to understand the intricacies of the FastAPI routing in `api/main.py`.
+
+---
+
+## 2. RAG Pipeline & Vector Stores
+
+### Question 2.1: The Role of FAISS
+
+**Question:** The project uses FAISS as a vector store. What is a vector store, and why is it a critical component of this RAG system? Walk me through how the `ChatIngestor` class prepares and uses it.
+
+**Answer:**
+A **vector store** is a specialized database designed to efficiently store and search high-dimensional vectors, which are numerical representations (embeddings) of text.
+
+It's critical for a RAG system because it enables **fast semantic search**. Instead of keyword matching, it finds document chunks that are semantically similar to the user's query, providing highly relevant context to the LLM for generating an answer.
+
+The `ChatIngestor` class in `src/document_ingestion/data_ingestion.py` uses it as follows:
+1.  **File Handling:** It first saves the uploaded documents to a session-specific temporary directory.
+2.  **Load & Split:** It uses `load_documents` to read the content and then a `RecursiveCharacterTextSplitter` to break the documents into smaller, manageable chunks.
+3.  **Instantiate `FaissManager`:** It creates an instance of `FaissManager`, which is responsible for the low-level interaction with the FAISS index.
+4.  **Embed & Index:** It passes the text chunks and their metadata to the `FaissManager`. The manager converts the text to embeddings and uses `FAISS.from_texts()` or `vs.add_documents()` to build or update the vector index, which is then saved to disk in the session's `faiss_dir`.
+
+### Question 2.2: Idempotent Indexing
+
+**Question:** In `src/document_ingestion/data_ingestion.py`, the `FaissManager` class has a `_fingerprint` method and checks if a key exists in its metadata before adding a new document. What is the purpose of this mechanism?
+
+**Answer:**
+This mechanism ensures **idempotent indexing**, meaning that the same document chunk will not be added to the vector store more than once, even if the user uploads the same file multiple times in a session.
+
+*   The `_fingerprint` method creates a unique identifier for each document chunk based on its source and content hash.
+*   The `add_documents` method checks this fingerprint against a stored metadata file (`ingested_meta.json`).
+*   If the fingerprint already exists, the chunk is skipped.
+
+This prevents the vector store from becoming bloated with duplicate data, which saves on storage, reduces embedding costs, and avoids skewed search results caused by redundant information.
+
+---
+
+## 3. LangChain & Prompt Engineering
+
+### Question 3.1: Conversational Context
+
+**Question:** The system needs to handle follow-up questions like "What about its architecture?". Looking at `prompt_library.py` and `retrieval.py`, explain the role of the `contextualize_question_prompt` and how the LCEL chain uses it.
+
+**Answer:**
+The `contextualize_question_prompt` is designed to solve the problem of **conversational ambiguity**. A vector store is stateless and cannot understand pronouns (like "its") or context from previous turns in a conversation.
+
+**How it works in the LCEL chain:**
+1.  **Rewrite the Question:** The `_build_lcel_chain` method in `ConversationalRAG` defines a `question_rewriter` chain. This is the *first step* in the pipeline.
+2.  **Provide Context:** It passes the `chat_history` and the new `input` (the user's follow-up question) to an LLM using the `contextualize_question_prompt`.
+3.  **Generate a Standalone Query:** The LLM's task is to rewrite the ambiguous follow-up question into a complete, standalone question. For example, "What about its architecture?" becomes "What is the architecture of the Transformer model from the 'Attention Is All You Need' paper?".
+4.  **Improve Retrieval:** This clear, self-contained question is then passed to the retriever. This ensures the semantic search is performed on an unambiguous query, leading to much more accurate and relevant document retrieval.
+
+### Question 3.2: The LCEL Chain
+
+**Question:** In `src/document_chat/retrieval.py`, the `_build_lcel_chain` method constructs the main RAG pipeline. Can you describe the three main steps of this chain after the question has been contextualized?
+
+**Answer:**
+Yes, the chain in `ConversationalRAG` follows a classic "retrieve-then-read" pattern implemented with LangChain Expression Language (LCEL). After the initial question rewriting, the main steps are:
+
+1.  **Retrieve (`retrieve_docs`):** The rewritten, standalone question is passed to the FAISS `retriever`. The retriever performs a similarity search and returns a set of relevant document chunks. The `_format_docs` utility function then concatenates their content into a single string.
+
+2.  **Prepare for Generation:** The chain then constructs a dictionary containing the `context` (the retrieved documents), the original `input` (user question), and the `chat_history`.
+
+3.  **Generate (`qa_prompt` | `llm`):** This dictionary is passed to the `context_qa_prompt`. This prompt instructs the LLM to act as a helpful assistant and answer the user's question *based only on the provided context*. The final output is parsed into a string using `StrOutputParser`.
+
+This structured pipeline ensures the LLM is "grounded" by the retrieved documents, which minimizes hallucinations and provides answers based on the user's uploaded files.
+
+---
+
+## 4. API & Backend Logic
+
+### Question 4.1: API Endpoint Logic
+
+**Question:** In `api/main.py`, the `/chat/query` endpoint contains logic to check for `session_id` and verify that the index directory exists. Is this the best place for this logic? If you were to refactor it, where might you move it and why?
+
+**Answer:**
+While placing the logic in the endpoint works, it's not ideal from a separation of concerns perspective. The API endpoint's primary responsibility should be to handle HTTP requests/responses and delegate business logic, not perform file system checks.
+
+**Refactoring Suggestion:**
+This logic should be moved into the `ConversationalRAG` class, specifically within the `load_retriever_from_faiss` method.
+
+*   The `load_retriever_from_faiss` method already accepts the `index_path`. It could be modified to perform the `os.path.isdir(index_path)` check at the beginning.
+*   If the path doesn't exist, it should raise a specific, custom exception (e.g., `IndexNotFoundError`, a subclass of `DocumentPortalException`).
+*   The FastAPI endpoint would then become much cleaner. It would simply call the method and use a `try...except` block to catch that specific exception, returning a 404 HTTP response to the user.
+
+**Why this is better:**
+*   **Encapsulation:** The `ConversationalRAG` class becomes fully responsible for its own dependencies (the FAISS index), making it more robust and self-contained.
+*   **Reusability:** If another part of the system needed to use `ConversationalRAG`, it wouldn't have to reimplement the same validation logic.
+*   **Cleaner API Layer:** The endpoint code in `main.py` becomes simpler and more focused on its core task of handling web traffic.
+
