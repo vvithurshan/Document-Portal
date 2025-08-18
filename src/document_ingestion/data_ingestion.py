@@ -49,6 +49,7 @@ class FaissManager:
     
     @staticmethod
     def _fingerprint(text: str, md: Dict[str, Any]) -> str:
+        '''it gives unique id to document'''
         src = md.get("source") or md.get("file_path")
         rid = md.get("row_id")
         if src is not None:
@@ -67,6 +68,7 @@ class FaissManager:
         
         for d in docs:
             key = self._fingerprint(d.page_content, d.metadata or {})
+            # check faiss index
             if key in self._meta["rows"]:
                 continue
             self._meta["rows"][key] = True
@@ -79,6 +81,7 @@ class FaissManager:
         return len(new_docs)
     
     def load_or_create(self,texts:Optional[List[str]]=None, metadatas: Optional[List[dict]] = None):
+        # load if exists
         if self._exists():
             self.vs = FAISS.load_local(
                 str(self.index_dir),
@@ -88,7 +91,7 @@ class FaissManager:
             return self.vs
         if not texts:
             raise DocumentPortalException("No existing FAISS index and no data to create one", sys)
-        
+        # create index and save
         self.vs = FAISS.from_texts(texts=texts, embedding=self.emb, metadatas=metadatas or [])
         self.vs.save_local(str(self.index_dir))
         return self.vs
