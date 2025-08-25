@@ -6,5 +6,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
 data/
 faiss_index/
