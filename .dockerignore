@@ -1,8 +1,10 @@
-logs/
-archive/
-data/
-env/
-venv/
+Dockerfile
+.dockerignore
 .git
 .gitignore
-.gitignore_template
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+data/
+faiss_index/
