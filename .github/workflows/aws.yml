@@ -97,3 +97,4 @@ jobs:
           wait-for-service-stability: true
       - name: Done!
         run: echo "Deployed to ECS Fargate Successfully"
+
