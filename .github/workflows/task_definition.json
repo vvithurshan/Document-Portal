@@ -1,14 +1,14 @@
 {
   "family": "documentportaltd",
   "networkMode": "awsvpc",
-  "executionRoleArn": "arn:aws:iam::459497895986:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::315237946832:role/ecsTaskExecutionRole",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "1024",
   "memory": "8192",
   "containerDefinitions": [
     {
       "name": "document-portal-container",
-      "image": "459497895986.dkr.ecr.ap-southeast-2.amazonaws.com/documentportalliveclass",
+      "image": "315237946832.dkr.ecr.us-east-1.amazonaws.com/documentportal",
       "cpu": 1024,
       "essential": true,
       "portMappings": [
@@ -28,8 +28,12 @@
       ],
       "secrets": [
         {
-          "name": "API_KEYS",
-          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:459497895986:secret:api_keys-nZTtj8"
+          "name": "GOOGLE_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-2:315237946832:secret:LLMAPIs-G2bq0K:GOOGLE_API_KEY"
+        },
+        {
+          "name": "GROQ_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-2:315237946832:secret:LLMAPIs-G2bq0K:GROQ_API_KEY"
         }
         
       ],
@@ -37,7 +41,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/documentportaltd",
-          "awslogs-region": "ap-southeast-2",
+          "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs",
           "awslogs-create-group": "true"
         }
